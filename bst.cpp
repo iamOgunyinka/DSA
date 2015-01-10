@@ -133,9 +133,9 @@ namespace dsa
             q.pop();
             }
             */
-            if(n->left != nullptr) {
+            if(n->left != NULL) {
                 breadth_first_traversal( /*q,*/ n->left );
-            } else if(n->right != nullptr) {
+            } else if(n->right != NULL) {
                 breadth_first_traversal( /*q,*/ n->right );
             } else {
                 return;
