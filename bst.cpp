@@ -131,6 +131,10 @@ namespace dsa
             /*
             breadth_first_traversal( n->visited );
             std::cout << n->value << " ";
+            if (n->Left() != NULL)
+			q.push(*n->Left());
+		    if (n->Right() != NULL)
+			q.push(*n->Right());
             */
         }
         
