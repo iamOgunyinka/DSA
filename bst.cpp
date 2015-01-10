@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <queue>
 
 namespace dsa
 {
@@ -124,10 +125,21 @@ namespace dsa
             std::cout << ( T )*n << " ";
             in_order_traversal( n->right );
         }
-        //~ TODO
-        void breadth_first_traversal( std::unique_ptr<Node<T>> & n )
+        
+        void breadth_first_traversal( std::unique_ptr<Node<T>> & n/*, std::queue<Node<T>> & q*/)
         {
-            
+            /*
+            while(!q.empty()) {
+            q.pop();
+            }
+            */
+            if(n->left != NULL) {
+                breadth_first_traversal( /*q,*/ n->left );
+            } else if(n->right != NULL) {
+                breadth_first_traversal( /*q,*/ n->right );
+            } else {
+                return;
+            }
         }
         
         void post_order_traversal( std::unique_ptr<Node<T>> & n )
