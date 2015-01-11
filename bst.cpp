@@ -277,8 +277,7 @@ int main()
     bst<Foo, decltype( compare )*> _bst ( { 23, 11 }, compare );
     _bst.traverse( dsa::TraversalMethod::post_order );
     std::endl( std::cout );
-    _bst.traverse( dsa::TraversalMethod::in_order );
-    _bst.remove( 23 ); //TODO
+    _bst.traverse( dsa::TraversalMethod::breadth_first );
     std::endl( std::cout );
     _bst.traverse();
     
