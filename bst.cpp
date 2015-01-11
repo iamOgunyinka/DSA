@@ -126,20 +126,22 @@ namespace dsa
             in_order_traversal( n->right );
         }
         
-        void breadth_first_traversal( std::unique_ptr<Node<T>> & n)
+        void breadth_first_traversal( std::unique_ptr<Node<T>> & n )
         {
-            if( !n ) return;
+            Node<T> *ptr = root.get();
+            if( !ptr ) return;
             std::queue< Node<T>* > q {};
-            while( n ) {
-                std::cout << n->value << " ";
-                if( n->left ) {
-                    q.push( n->left.get() );
+            while( ptr ) {
+                std::cout << ptr->value << " ";
+                if( ptr->left ) {
+                    q.push( ptr->left.get() );
                 }
-                if( n->right ) {
-                    q.push( n->right.get() );
+                if( ptr->right ) {
+                    q.push( ptr->right.get() );
                 }
+                ptr = nullptr;
                 if( !q.empty() ) {
-                    q.front();
+                    ptr = q.front();
                     q.pop();
                 }
             }
