@@ -128,6 +128,7 @@ namespace dsa
         
         void breadth_first_traversal( std::unique_ptr<Node<T>> & n)
         {
+            if( !n ) return;
             std::queue< Node<T>* > q {};
             while( n ) {
                 std::cout << n->value << " ";
@@ -138,6 +139,7 @@ namespace dsa
                     q.push( n->right.get() );
                 }
                 if( !q.empty() ) {
+                    q.front();
                     q.pop();
                 }
             }
