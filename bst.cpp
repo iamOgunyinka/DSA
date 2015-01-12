@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <queue>
 
 namespace dsa
 {
@@ -14,10 +15,14 @@ namespace dsa
     struct Node
     {
         std::unique_ptr< Node<T> > left, right;
+        Node<T> *parent;
         T value;
+
+        Node( Node<T> const & node ) = delete;
+        Node& operator= ( Node const & ) = delete;
         
-        constexpr Node(): left{ nullptr }, right{ nullptr }, value{} {}
-        constexpr Node( T const & val ): left{ nullptr }, right { nullptr }, value { val } {}
+        constexpr Node(): left{ nullptr }, right{ nullptr }, parent{ nullptr }, value{} {}
+        constexpr Node( T const & val ): left{ nullptr }, right { nullptr }, parent{ nullptr }, value { val } {}
         explicit operator T(){ return value; }
     };
 
@@ -27,82 +32,106 @@ namespace dsa
     private:
         std::unique_ptr< Node<T> > root;
         unsigned int _size;
-        Less comp;
+        Less _less;
     public:
-        constexpr BinarySearchTree(): root { nullptr }, _size( 0 ), comp{ } { }
-        BinarySearchTree( std::initializer_list<T> lst, Less const &_comp = Less{} ): BinarySearchTree {}
+        BinarySearchTree( BinarySearchTree<T, Less> const & bst ) = delete;
+        BinarySearchTree& operator=( BinarySearchTree<T, Less> const & ) = delete;
+
+        BinarySearchTree& operator=( BinarySearchTree<T, Less> && bst )
         {
-            _size = lst.size();
-            comp = _comp;
+            root.reset( bst.root.release() );
+            return *this;
+        }
+        constexpr BinarySearchTree( Less const & les = Less {} ): root { nullptr }, _size( 0 ), _less{ les } { }
+        BinarySearchTree( std::initializer_list<T> lst, Less const &les = Less{} ): BinarySearchTree { les }
+        {
+            _less = les;
             for( const auto &l : lst ) {
                 insert( l );
             }
         }
+        
         inline size_t size() const { return _size; }
         void insert( T const & val )
         {
             if( !root ) {
                 root.reset( new Node<T> { val } );
             } else {
-                insert_node( root.get(), val );
+                insert_node( val );
+                ++_size;
             }
         }
-        void insert_node( Node<T> *ptr, T const & val )
+        void insert_node( T const & val )
         {
-            if( comp( val, ptr->value ) ){
-                if( !ptr->left ){
-                    ptr->left.reset( new Node<T>{ val } );
+            Node<T> *ptr = root.get();
+            while( true ){
+                if( _less( val, ptr->value ) ) {
+                    if( !ptr->left ) {
+                        ( ptr->left ).reset( new Node<T> { val } );
+                        ptr->left->parent = ptr;
+                        return;
+                    } else {
+                        ptr = ptr->left.get();
+                    }
                 } else {
-                    insert_node( ptr->left.get(), val );
-                }
-            } else {
-                if( !ptr->right ) {
-                    ptr->right.reset( new Node<T> { val } );
-                } else {
-                    insert_node( ptr->right.get(), val );
+                    if( !ptr->right ) {
+                        ( ptr->right ).reset( new Node<T> { val } );
+                        ptr->right->parent = ptr;
+                        return;
+                    } else {
+                        ptr = ptr->right.get();
+                    }
                 }
             }
+            ptr = nullptr;
+            
         }
+        
         bool remove( T const & val )
         {
             if( !root ) return false;
-            auto parentNode = find_parent( root.get(), val );
             auto nodeToRemove = find_node( root.get(), val );
 
             if( !nodeToRemove ) return false;
+
+            auto parentNode = nodeToRemove->parent;
             if( size() == 1 ){ //We have one element in the BST
                 root.reset();
                 --_size;
                 return true;
             } else if( !nodeToRemove->left && !nodeToRemove->right ) { //leaf node
-                if( comp( nodeToRemove->value, parentNode->value ) ) {
+                if( _less( nodeToRemove->value, parentNode->value ) ) {
                     parentNode->left.reset();
                 } else {
                     parentNode->right.reset();
                 }
             } else if( !nodeToRemove->left && nodeToRemove->right ) { //right subtree, no left subtree
-                if( comp( nodeToRemove->value, parentNode->value )) {
+                if( _less( nodeToRemove->value, parentNode->value )) {
                     parentNode->left = std::move( nodeToRemove->right );
                 } else {
                     parentNode->right = std::move( nodeToRemove->right );
                 }
             } else if( nodeToRemove->left && !nodeToRemove->right ) { //left subtree, no right subtree
-                std::cout << "We are here" << std::endl;
-                std::cout << parentNode->value << ", " << nodeToRemove->value << std::endl;
-                if( comp( nodeToRemove->value, parentNode->value )) {
+                if( _less( nodeToRemove->value, parentNode->value )) {
                     parentNode->right = std::move( nodeToRemove->left );
                 } else {
                     parentNode->left.reset( nodeToRemove->left.release() );
                 }
+            //~ Contains Bug, To Fix!
             } else { // Left and Right subtree available
-                //~ 
+                auto largestValue = nodeToRemove->left.get();
+                while( largestValue->right ){
+                    largestValue = largestValue->right.get();
+                }
+                largestValue->parent->right.reset();
+                nodeToRemove->value = largestValue->value;
             }
             --_size;
             return true;
         }
-        
 
-        inline void traverse( TraversalMethod meth = TraversalMethod::pre_order ){
+        inline void traverse( TraversalMethod meth = TraversalMethod::pre_order )
+        {
             switch( meth ){
                 case TraversalMethod::pre_order:
                     pre_order_traversal( root );
@@ -117,6 +146,7 @@ namespace dsa
                     breadth_first_traversal( root );
             }
         }
+        
         void in_order_traversal( std::unique_ptr<Node<T>> & n )
         {
             if( !n ) return;
@@ -124,10 +154,27 @@ namespace dsa
             std::cout << ( T )*n << " ";
             in_order_traversal( n->right );
         }
-        //~ TODO
+        
         void breadth_first_traversal( std::unique_ptr<Node<T>> & n )
         {
+            Node<T>* ptr = root.get();
+            if( !ptr ) return;
             
+            std::queue< Node<T>* > q {};
+            while( ptr ){
+                std::cout << ptr->value << " ";
+                if( ptr->left ) {
+                    q.push( ptr->left.get() );
+                }
+                if( ptr->right ) {
+                    q.push( ptr->right.get() );
+                }
+                ptr = nullptr;
+                if( !q.empty() ){
+                    ptr = q.front();
+                    q.pop();
+                }
+            }
         }
         
         void post_order_traversal( std::unique_ptr<Node<T>> & n )
@@ -183,34 +230,18 @@ namespace dsa
             if( !ptr ) return nullptr;
             if( ptr->value == val ) return ptr;
             
-            if( comp( val, ptr->value )) return find_node( ptr->left.get(), val );
+            if( _less( val, ptr->value )) return find_node( ptr->left.get(), val );
             else return find_node( ptr->right.get(), val );
         }
          
         Node<T>* find_parent( Node<T> *ptr, T const & val )
         {
             if( !ptr ) return nullptr;
-            if( val == ptr->value ) return nullptr;
-
-            if( comp( val, ptr->value )) {
-                if( !ptr->left ) {
-                    return nullptr;
-                } else if ( val == ptr->left->value ) {
-                    return ptr;
-                } else {
-                    return find_parent( ptr->left.get(), val );
-                }
-            } else {
-                if( !ptr->right ) {
-                    return nullptr;
-                } else if( val == ptr->right->value ) {
-                    return ptr;
-                } else {
-                    return find_parent( ptr->right.get(), val );
-                }
-            }
+            auto parentNode = find_node( ptr, val );
+            if( parentNode ) return parentNode->parent;
             return nullptr;
         }
+        
         std::tuple<bool, T> find_min() const
         {
             if( !root ) return std::make_tuple( false, T{} );
@@ -257,14 +288,15 @@ using bst = dsa::BinarySearchTree<T, Compare>;
 
 int main()
 {
-    bst<Foo, decltype( compare )*> _bst ( { 23, 11 }, compare );
-    _bst.traverse( dsa::TraversalMethod::post_order );
+    std::initializer_list< Foo > const init_list { 84, 78, 87, 16, 83, 94, 12, 36, 87, 22, 50, 93, 28, 41, 63, 91, 27, 30, 37, 60, 64, 24, 27, 31, 36, 63, 73, 69, 68, 68 };
+
+    bst<Foo, decltype( compare )*> _bst ( init_list, compare );
+    _bst.traverse( dsa::TraversalMethod::breadth_first );
     std::endl( std::cout );
-    _bst.traverse( dsa::TraversalMethod::in_order );
-    _bst.remove( 23 ); //TODO
-    std::endl( std::cout );
-    _bst.traverse();
     
+    _bst.remove( *init_list.begin() );
+    _bst.traverse( dsa::TraversalMethod::in_order );
+    std::endl( std::cout );
     
     return 0;
 }
